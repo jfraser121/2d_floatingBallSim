@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL2_gfxPrimitives.h>
 #include <time.h>
 
 #define WIDTH 800
@@ -25,6 +26,7 @@ void generateBalls(Ball balls[], int numBalls);
 void updatePositions(Ball balls[], int numBalls);
 void handleWallCollisions(Ball balls[], int numBalls);
 void handleBallCollisions(Ball balls[], int numBalls);
+int overlaps(Ball *balls, int count, double x, double y, double r);
 
 
 int main(void) {
@@ -59,29 +61,40 @@ int main(void) {
 	return 0;
 }
 
-void drawBall(SDL_Renderer *renderer, Ball b){
-	SDL_SetRenderDrawColor(renderer, b.cr, b.cg, b.cb, 255);
-	for (int w = -b.r; w < b.r; w++) {
-		for (int h = -b.r; h < b.r; h++) {
-			if (w*w + h*h <= b.r*b.r) {
-				SDL_RenderDrawPoint(renderer, (int)(b.x + w), (int)(b.y + h));
-			}
-		}
-	}
+void drawBall(SDL_Renderer *renderer, Ball b) {
+    filledCircleRGBA(renderer, (int)b.x, (int)b.y, (int)b.r, b.cr, b.cg, b.cb, 255);
+}
+
+int overlaps(Ball *balls, int count, double x, double y, double r) {
+    for (int i = 0; i < count; i++) {
+        double dx = balls[i].x - x;
+        double dy = balls[i].y - y;
+        double dist = sqrt(dx*dx + dy*dy);
+        if (dist < balls[i].r + r) return 1; // overlap
+    }
+    return 0;
 }
 
 void generateBalls(Ball balls[], int numBalls) {
-	srand((unsigned int)time(NULL));
-	for (int i = 0; i < numBalls; i++) {
-		balls[i].r = 10 + rand() % 21; // radius between 10 and 30
-		balls[i].x = balls[i].r + rand() % (WIDTH - 2 * (int)balls[i].r);
-		balls[i].y = balls[i].r + rand() % (HEIGHT - 2 * (int)balls[i].r);
-		balls[i].vx = (rand() % 201 - 100); // velocity between -100 and 100
-		balls[i].vy = (rand() % 201 - 100);
-		balls[i].cr = rand() % 256; // random red
-		balls[i].cg = rand() % 256; // random green
-		balls[i].cb = rand() % 256; // random blue
-	}
+    srand((unsigned int)time(NULL));
+    for (int i = 0; i < numBalls; i++) {
+        double r, x, y;
+        int tries = 0;
+        do {
+            r = 10 + rand() % 21;
+            x = r + rand() % (WIDTH - 2 * (int)r);
+            y = r + rand() % (HEIGHT - 2 * (int)r);
+            tries++;
+        } while (overlaps(balls, i, x, y, r) && tries < 1000);
+        balls[i].r = r;
+        balls[i].x = x;
+        balls[i].y = y;
+        balls[i].vx = (rand() % 201 - 100);
+        balls[i].vy = (rand() % 201 - 100);
+        balls[i].cr = rand() % 256;
+        balls[i].cg = rand() % 256;
+        balls[i].cb = rand() % 256;
+    }
 }
 
 int checkCollision(Ball a, Ball b) {
@@ -123,6 +136,7 @@ void handleWallCollisions(Ball balls[], int numBalls) {
 			balls[i].vx = -balls[i].vx;
 		}
 		if (balls[i].y - balls[i].r < 0 || balls[i].y + balls[i].r > HEIGHT) {
+			balls[i].vy = -balls[i].vy;
 		}	
 	}
 }
